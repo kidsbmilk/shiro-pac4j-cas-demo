@@ -24,6 +24,7 @@ import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
 import org.apache.shiro.web.servlet.SimpleCookie;
 import org.apache.shiro.web.session.mgt.DefaultWebSessionManager;
+import org.jasig.cas.client.session.SingleSignOutFilter;
 import org.pac4j.core.config.Config;
 import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator;
 import org.springframework.beans.factory.annotation.Value;
@@ -103,7 +104,7 @@ public class ShiroConfig {
         filterChainDefinitionMap.put("/index", "securityFilter");
         filterChainDefinitionMap.put("/hello", "securityFilter");
         filterChainDefinitionMap.put("/userInfo", "customCasFilter");
-        filterChainDefinitionMap.put("/callback", "callbackFilter");
+        filterChainDefinitionMap.put("/hello/callback", "callbackFilter");
         filterChainDefinitionMap.put("/logout", "logout");
         filterChainDefinitionMap.put("/**","anon");
         // filterChainDefinitionMap.put("/user/edit/**", "authc,perms[user:edit]");
@@ -229,4 +230,17 @@ public class ShiroConfig {
         return assertionTLFilter;
     }
 
+    @Bean
+    public FilterRegistrationBean singleSignOutFilter() {
+        FilterRegistrationBean bean = new FilterRegistrationBean();
+        bean.setName("singleSignOutFilter");
+        SingleSignOutFilter singleSignOutFilter = new SingleSignOutFilter();
+        singleSignOutFilter.setCasServerUrlPrefix(casServerUrl);
+        singleSignOutFilter.setIgnoreInitConfiguration(true);
+        bean.setFilter(singleSignOutFilter);
+        bean.addUrlPatterns("/*");
+        bean.setEnabled(true);
+        bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return bean;
+    }
 }
