@@ -230,6 +230,10 @@ public class ShiroConfig {
         return assertionTLFilter;
     }
 
+    /**
+     * 验证的时候，千万不要用简单的返回固定内容的页面、链接来验证，因为会有缓存，导致觉得退出没有效果。
+     * 如果用简单的返回固定内容的页面、链接来验证的话，可以重新打开一个窗口重新输入链接来验证。
+     */
     @Bean
     public FilterRegistrationBean singleSignOutFilter() {
         FilterRegistrationBean bean = new FilterRegistrationBean();
