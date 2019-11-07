@@ -233,6 +233,9 @@ public class ShiroConfig {
     /**
      * 验证的时候，千万不要用简单的返回固定内容的页面、链接来验证，因为会有缓存，导致觉得退出没有效果。
      * 如果用简单的返回固定内容的页面、链接来验证的话，可以重新打开一个窗口重新输入链接来验证。
+     *
+     * 另外，也不要在同一台机器上部署cas server以及多个client服务，那样退出也会有问题，看不出是代码的问题还是环境部署的问题。
+     * 最好是用虚拟机部署cas server，然后在本机跑多个client服务来做测试。
      */
     @Bean
     public FilterRegistrationBean singleSignOutFilter() {

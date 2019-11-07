@@ -1,0 +1,190 @@
+ChenTH/cas-client-springboot-demo
+不使用cas-client或者pac4j提供的方式，直接使用接口对接cas单点登录服务，方便学习cas-client的原理
+https://github.com/ChenTH/cas-client-springboot-demo
+这个写的非常好，可以使用这个来实现cas认证，然后用shiro做权限控制，不再使用pac4j-cas了。
+@GetMapping("/vailedST")
+    @ResponseBody
+    public String redirect(@RequestParam("ticket") String serviceTicket, HttpServletResponse response) throws DocumentException {
+        logger.info("我接收到了ST:" + serviceTicket);
+        //拼装st校验请求地址
+        String url = casUrl + "/cas/serviceValidate?service=" + serviceUrl + "/cas/vailedST&ticket=" + serviceTicket;
+        RestTemplate restTemplate = new RestTemplate();
+        //发送请求
+        ResponseEntity<String> entity = restTemplate.getForEntity(url, String.class);
+        //判断请求是否成功
+        if (entity.getStatusCode() == HttpStatus.OK) {
+            /***
+             * 请求响应格式如下：
+             * <cas:serviceResponse xmlns:cas='http://www.yale.edu/tp/cas'>
+             *     <cas:authenticationSuccess>
+             *         <cas:user>15</cas:user>
+             *         </cas:authenticationSuccess>
+             * </cas:serviceResponse>
+             */
+            String xmlStr = entity.getBody();
+            logger.info(xmlStr);
+            Document document = DocumentHelper.parseText(xmlStr);
+            //使用dom4j取得cas:user处的用户id
+            Node node = document.selectSingleNode("//cas:user");
+            String idStr = node.getText();
+上面的拼装中，url里的serviceUrl里有ticket，所以服务器只是验证ticket是否正确，不会再回调到/cas/vailedST，只所以要再写入/cas/vailedST，是因为登录时的serviceUrl里有这个，所以要写上，方便cas server去做验证。
+
+huotui-spider当时应该是有两个//callback，所以没有被callbackfilter拦截，所以出错了。本地为什么就能成功呢？？？
+
+
+
+spean90/shiro-pac4j-cas-demo
+https://github.com/spean90/shiro-pac4j-cas-demo
+这个看着不错，像是一个完整的代码。
+gkaigk1987/shiro-pac4j-cas-demo
+https://github.com/gkaigk1987/shiro-pac4j-cas-demo
+这个是根据上面那个修改的
+可以在CustomCallbackFilter里打印出所有url，看看都有啥。
+看源码是个痛苦的事，也有非常多的技巧：比如，自己与个某类的子类，然后在子类里打印出日志，然后原路调用父类的代码。
+再比如，跟进库里直接看代码里设置的某个变量是如何起作用的。
+
+CustomCasClient里的代码都在父类里有，只是修改了一下返回地址。
+
+原来java开源软件、插件都是非常规范的，遵循类的规范、java的规范，要想实现自己的东西，只需要参考接口的其他实现，自己继承现有的类或者自己实现库定义的接口，然后再设置到流程里就可以了。java世界学习架构设计是非常方便地，随便找个接口，就可以看到一系列的实现，也是太多的原因，导致看着很累。
+
+CustomShiroSessionStore的实现跟ShiroSessionStore的实现一样，只是修改了buildFromTrackableSession方法，而修改的套路跟ShiroSessionStore的另一套实现一样：J2ESessionStore和J2EProvidedSessionStore。
+
+CustomCasFilter中：过滤fid，在其他项目中已经登录、跳去登录验证；
+这个应该是指：其他登录后的项目会在cookies里写入特定的fid，然后本服务的后端会过滤看看其他项目在访问本服务时有没有认证过，如果认证过，则本服务也去认证一下，如果没认证过，则返回空数据。可以看看登录与不登录在访问/userInfo上的区别。
+
+@Bean()
+    public Config config(CasClient casClient, CustomShiroSessionStore shiroSessionStore) {
+        Config config = new Config(casClient);
+        config.setSessionStore(shiroSessionStore);
+        return config;
+    }
+
+    /**
+     * 自定义存储
+     * @return
+     */
+    @Bean
+    public CustomShiroSessionStore shiroSessionStore(){
+        return CustomShiroSessionStore.INSTANCE;
+    }
+是用的CustomShiroSessionStore的单例模式，直接使用的CustomShiroSessionStore里的static实例。
+
+将库里的源码下载下来，每个类或者方法上都有注释。
+源码也没那么难看懂：
+CallbackFilter.doFilter -> callbackLogic.perform -> DefaultCallbackLogic.perform，到这里可以看到很多参数是如何起作用的，以及如何发起重定向请求的。
+
+为什么要自定义CallbackFilter？
+是因为，一个服务可能不止要对一个cas server做认证，比如，我的后台服务，首先要登录本公司的cas server，然后我的后台服务里要调用weibo的服务，那就要再去weibo那里做认证，而且每一个认证的服务可能回调都不一样，
+所以对于每一种认证都需要自定义一套CasClient、property以及callbackFilter。参考下面这个链接：
+https://blog.csdn.net/hxpjava1/article/details/77934056
+
+登录成功后的默认回调地址都是可以改的，不一定非得是根地址，可以加一些index、home之类的，都是可以灵活定义的。
+https://blog.csdn.net/ywslakers123/article/details/78288112
+
+CAS 系列 之 AJAX 请求：
+https://www.iteye.com/blog/gogo1217-2425080
+如何在 CAS 单点登录环境下发送 Ajax 请求？
+https://www.oschina.net/question/223750_142890?sort=default
+原来可以这样玩 SSO
+https://my.oschina.net/huangyong/blog/198519
+基于CAS的SSO单点登录-实现ajax跨域访问的自动登录（也相当于超时重连）
+https://www.cnblogs.com/syjkfind/archive/2015/03/26/4370092.html
+CAS环境下的AJAX跨域
+https://blog.csdn.net/liweibin_/article/details/49000195
+
+
+
+
+
+
+
+
+cas-shiro-buji-pac4j-poc-example
+https://github.com/geofusion/cas-shiro-buji-pac4j-poc-example
+这里有一个geo-cas-server，geocas好像也只是个客户端，还有两个webapp
+
+Gahon1995/spring-boot-pac4j-cas-starter
+https://github.com/Gahon1995/spring-boot-pac4j-cas-starter
+这是人家写好的一个插件
+
+bobsharon/cas-client
+https://github.com/bobsharon/cas-client
+这个不错，这里有很多说明
+
+casinthecloud/cas-pac4j-oauth-demo
+https://github.com/casinthecloud/cas-pac4j-oauth-demo
+这个是测试cas server的authentication delegation
+
+hsj-xiaokang/springboot-shiro-cas-mybatis
+https://github.com/hsj-xiaokang/springboot-shiro-cas-mybatis
+这个说使用jwt最好，而且cas是4.1.0
+
+pac4j/casserverpac4j
+https://github.com/pac4j/casserverpac4j
+这是个服务器，也有在线的地址可以验证。
+
+puffershy/puffer-sso
+https://github.com/puffershy/puffer-sso
+这个有个服务器，也有个客户端
+
+1194449282/shiro-cas-pac4j
+https://github.com/1194449282/shiro-cas-pac4j
+这个不知道是做啥的
+
+Shiro内置过滤器
+https://blog.csdn.net/l_cl_java/article/details/80425396
+
+查询渠道：
+官方文档
+博客资料
+github项目
+google
+stackoverflow
+
+其实，直接以最初的cas来布置，用固定的用户名密码就能，不需要使用太复杂的cas server。
+等客户端验证通过了，再使用复杂的Cas server。
+
+CAS实现单点登录SSO执行原理探究(终于明白了)
+https://blog.csdn.net/javaloveiphone/article/details/52439613
+这个写的非常好，有多系统登录相关的讲解。
+看来，其实协议文档都是非常详细明了的，只是自己懒得看而已。
+
+org.pac4j.cas.credentials.extractor.TicketAndLogoutRequestExtractor
+CAS ticket extractor or logout request handler.
+难怪登录和登出设置的默认地址里都有/callback，并且自定义了CustomCallbackFilter来过滤/callback，就是因为上面那个TicketAndLogoutRequestExtractor，既实现了登录后提取ticket，也实现了登出时清除session、cookie之类的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
